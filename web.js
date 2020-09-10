@@ -1,6 +1,6 @@
 const wa = require("@open-wa/wa-automate");
+const { parse } = require("querystring");
 var http = require("http");
-var url = require("url");
 
 var theclient;
 
@@ -11,14 +11,44 @@ wa.create().then(client => start(client));
 
 http
   .createServer(function(req, res) {
-    res.writeHead(200, { "Content-Type": "text/html" });
-    var q = url.parse(req.url, true).query;
-    // q.to => xxxxx@c.us
-    var txt = q.to + " " + q.msg;
-    theclient.sendText("" + q.to, q.msg);
-    res.end(txt);
+    if (req.method === "POST") {
+      let body = "";
+      req.on("data", chunk => {
+        body += chunk.toString(); // convert Buffer to string
+      });
+      req.on("end", () => {
+        let post = parse(body);
+        console.log(post);
+        //res.end(JSON.stringify(post));
+        sendMessage(post.to, post.msg);
+        res.end(webpage(JSON.stringify(post)));
+      });
+    } else {
+      res.end(webpage());
+    }
   })
   .listen(8080);
+
+function sendMessage(to, msg) {
+  theclient.sendText(to, msg);
+}
+
+function webpage(param = "") {
+  let html = `
+    <!doctype html>
+    <html>
+    <body>
+      ${param}
+      <form action="/" method="post">
+        <input type="text" name="to" placeholder="To" /><br />
+        <input type="text" name="msg" placeholder="Message" /><br />
+        <button>Save</button>
+      </form>
+    </body>
+    </html>
+  `;
+  return html;
+}
 
 function start(client) {
   theclient = client;
